@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia - Iglesia León de Judá</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- ENCABEZADO OFICIAL -->
+  <header>
+    <div class="header-container">
+      <img src="assets/logo.jpg" alt="Logotipo León de Judá" class="church-logo">
+      <div class="header-title">
+        <h1>IGLESIA LEÓN DE JUDÁ</h1>
+        <h2>Iglesia de Dios en México E.C.A.R.</h2>
+        <p>Sistema de Control de Asistencia y Gestión de Membresía</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVEGACIÓN -->
+  <nav>
+    <div class="nav-container">
+      <button class="nav-btn active" onclick="switchTab('dashboard')">
+        <i class="fa-solid fa-chart-pie"></i> Inicio
+      </button>
+      <button class="nav-btn" onclick="switchTab('miembros')">
+        <i class="fa-solid fa-users"></i> Registro de Miembros
+      </button>
+      <button class="nav-btn" onclick="switchTab('asistencia')">
+        <i class="fa-solid fa-clipboard-user"></i> Control de Asistencia
+      </button>
+      <button class="nav-btn" onclick="switchTab('reportes')">
+        <i class="fa-solid fa-file-lines"></i> Reportes
+      </button>
+    </div>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+
+    <!-- PESTAÑA: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon gold"><i class="fa-solid fa-users"></i></div>
+          <div class="stat-details">
+            <h3 id="stat-total-miembros">0</h3>
+            <p>Miembros Registrados</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fa-solid fa-church"></i></div>
+          <div class="stat-details">
+            <h3 id="stat-total-servicios">0</h3>
+            <p>Servicios Realizados</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fa-solid fa-user-check"></i></div>
+          <div class="stat-details">
+            <h3 id="stat-asistencia-promedio">0%</h3>
+            <p>Asistencia Promedio</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="fa-solid fa-calendar-check"></i></div>
+          <div class="stat-details">
+            <h3 id="stat-ultimo-servicio">--</h3>
+            <p>Último Culto</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fa-solid fa-clock-rotate-left"></i> Resumen de Servicios Recientes
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo de Servicio</th>
+                <th>Presentes</th>
+                <th>Ausentes</th>
+                <th>Justificados</th>
+                <th>% Asistencia</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-servicios-tbody">
+              <tr>
+                <td colspan="6" class="text-center">No hay servicios registrados aún.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA: REGISTRO DE MIEMBROS -->
+    <section id="tab-miembros" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <i class="fa-solid fa-user-plus"></i> <span id="form-miembro-title">Nuevo Registro de Miembro</span>
+        </div>
+        <form id="form-miembro" onsubmit="guardarMiembro(event)">
+          <input type="hidden" id="miembro-id">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="miembro-nombre">Nombre Completo *</label>
+              <input type="text" id="miembro-nombre" class="form-control" placeholder="ej. Juan Pérez" required>
+            </div>
+            <div class="form-group">
+              <label for="miembro-telefono">Teléfono</label>
+              <input type="tel" id="miembro-telefono" class="form-control" placeholder="ej. 555-123-4567">
+            </div>
+            <div class="form-group">
+              <label for="miembro-correo">Correo Electrónico</label>
+              <input type="email" id="miembro-correo" class="form-control" placeholder="ej. miembro@ejemplo.com">
+            </div>
+            <div class="form-group">
+              <label for="miembro-tipo">Tipo de Miembro *</label>
+              <select id="miembro-tipo" class="form-control" required>
+                <option value="Miembro Regular">Miembro Regular</option>
+                <option value="Liderazgo / Servidor">Liderazgo / Servidor</option>
+                <option value="Visitante">Visitante</option>
+                <option value="Niño / Joven">Niño / Joven</option>
+                <option value="Adulto Mayor">Adulto Mayor</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex-between mt-2">
+            <button type="button" class="btn btn-secondary" onclick="resetFormMiembro()">Cancelar / Limpiar</button>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Miembro</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-2">
+          <div class="card-title mb-1" style="border:none; padding:0;">
+            <i class="fa-solid fa-address-book"></i> Listado de Miembros
+          </div>
+          <div class="form-group" style="width: 250px;">
+            <input type="text" id="buscar-miembro" class="form-control" placeholder="Buscar por nombre..." oninput="renderTablaMiembros()">
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nombre Completo</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Tipo de Miembro</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-miembros-tbody">
+              <!-- Se cargan dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA: CONTROL DE ASISTENCIA -->
+    <section id="tab-asistencia" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <i class="fa-solid fa-calendar-plus"></i> Crear o Seleccionar Fecha de Culto / Servicio
+        </div>
+        <form id="form-servicio" onsubmit="crearOSeleccionarServicio(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="servicio-fecha">Fecha del Culto *</label>
+              <input type="date" id="servicio-fecha" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="servicio-tipo">Tipo de Servicio *</label>
+              <select id="servicio-tipo" class="form-control" required>
+                <option value="Servicio Dominical">Servicio Dominical</option>
+                <option value="Culto de Oración">Culto de Oración</option>
+                <option value="Estudio Bíblico">Estudio Bíblico</option>
+                <option value="Reunión de Jóvenes">Reunión de Jóvenes</option>
+                <option value="Evento Especial">Evento Especial</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="servicio-descripcion">Observaciones / Notas</label>
+              <input type="text" id="servicio-descripcion" class="form-control" placeholder="ej. Tema del mensaje, predica...">
+            </div>
+          </div>
+          <div class="mt-2 text-center">
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check-double"></i> Abrir Registro de Asistencia</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="panel-toma-asistencia" class="card" style="display: none;">
+        <div class="flex-between mb-2">
+          <div>
+            <h2 id="asistencia-servicio-info" style="color: var(--primary-gold); font-size: 1.3rem;">--</h2>
+            <p id="asistencia-servicio-subinfo" style="color: var(--text-muted); font-size: 0.9rem;">--</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="marcarTodos('Presente')">Marcar Todos Presentes</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarAsistenciaActual()"><i class="fa-solid fa-floppy-disk"></i> Guardar Asistencia</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Miembro</th>
+                <th>Tipo</th>
+                <th class="text-center">Estado de Asistencia</th>
+                <th>Observaciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-asistencia-tbody">
+              <!-- Se llena dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA: REPORTES -->
+    <section id="tab-reportes" class="tab-content">
+      <div class="card">
+        <div class="flex-between mb-2">
+          <div class="card-title" style="border:none; padding:0;">
+            <i class="fa-solid fa-chart-column"></i> Reporte Detallado de Asistencia por Servicio
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-sm" onclick="exportarBaseDatos()"><i class="fa-solid fa-download"></i> Exportar Datos (JSON)</button>
+            <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir Reporte</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha de Culto</th>
+                <th>Tipo de Servicio</th>
+                <th>Total Miembros</th>
+                <th>Presentes</th>
+                <th>Ausentes</th>
+                <th>Justificados</th>
+                <th>% Asistencia</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-reportes-tbody">
+              <!-- Se llena dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PIE DE PÁGINA -->
+  <footer>
+    <p>&copy; 2026 Iglesia León de Judá (Iglesia de Dios en México E.C.A.R.) - Sistema de Control de Asistencia</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
