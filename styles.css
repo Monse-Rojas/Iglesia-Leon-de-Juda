@@ -37,7 +37,7 @@ body {
 header {
   background: linear-gradient(135deg, #020617 0%, #1e1b4b 50%, #0f172a 100%);
   border-bottom: 2px solid var(--primary-gold);
-  padding: 1.5rem 2rem;
+  padding: 1.2rem 2rem;
   box-shadow: var(--shadow-lg);
 }
 
@@ -48,18 +48,18 @@ header {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .header-brand {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .church-logo {
-  width: 90px;
-  height: 90px;
+  width: 75px;
+  height: 75px;
   border-radius: 50%;
   border: 3px solid var(--primary-gold);
   object-fit: cover;
@@ -67,120 +67,67 @@ header {
 }
 
 .header-title h1 {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: #ffffff;
   letter-spacing: 0.5px;
 }
 
 .header-title h2 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--primary-gold);
   font-weight: 500;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .header-title p {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 2px;
 }
 
 .header-config {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem;
 }
 
+/* Insignia Supabase Compacta */
 .supabase-status {
-  padding: 0.35rem 0.85rem;
+  padding: 0.3rem 0.65rem;
   border-radius: 50px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .supabase-status.connected {
-  background-color: rgba(16, 185, 129, 0.2);
+  background-color: rgba(16, 185, 129, 0.15);
   color: var(--accent-green);
   border: 1px solid var(--accent-green);
 }
 
 .supabase-status.disconnected {
-  background-color: rgba(245, 158, 11, 0.2);
+  background-color: rgba(245, 158, 11, 0.15);
   color: var(--accent-yellow);
   border: 1px solid var(--accent-yellow);
 }
 
-/* Navegación */
-nav {
-  background-color: #020617;
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  overflow-x: auto;
-}
-
-.nav-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.nav-btn:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: var(--text-main);
-}
-
-.nav-btn.active {
-  background-color: var(--primary-gold);
-  color: #000000;
+/* Ocultar panel de estado cuando las credenciales estén guardadas y activas */
+.header-config.collapsed .supabase-status-details {
+  display: none;
 }
 
 /* Contenido Principal */
 main {
   max-width: 1200px;
   width: 100%;
-  margin: 2rem auto;
+  margin: 1.5rem auto;
   padding: 0 1rem;
   flex: 1;
-}
-
-.tab-content {
-  display: none;
-}
-
-.tab-content.active {
-  display: block;
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Tarjetas y Contenedores */
@@ -194,9 +141,9 @@ main {
 }
 
 .card-title {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   color: var(--primary-gold);
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.2rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -204,7 +151,7 @@ main {
   padding-bottom: 0.75rem;
 }
 
-/* Estadísticas Rápidas (Dashboard) */
+/* Estadísticas Rápidas */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -223,13 +170,13 @@ main {
 }
 
 .stat-icon {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
 }
 
 .stat-icon.gold { background-color: rgba(212, 175, 55, 0.15); color: var(--primary-gold); }
@@ -250,7 +197,7 @@ main {
 /* Formularios */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
@@ -387,37 +334,7 @@ main {
   border: 1px solid var(--accent-purple);
 }
 
-/* Selector de Asistencia */
-.attendance-options {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.attendance-btn {
-  padding: 0.45rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background-color: #0f172a;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.attendance-btn.presente.active {
-  background-color: var(--accent-green);
-  color: #000;
-  border-color: var(--accent-green);
-}
-
-.attendance-btn.falta.active {
-  background-color: var(--accent-red);
-  color: #fff;
-  border-color: var(--accent-red);
-}
-
-/* Modal de Configuración Supabase */
+/* Modal Supabase */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -482,7 +399,7 @@ main {
 footer {
   background-color: #020617;
   border-top: 1px solid var(--border-color);
-  padding: 1.5rem;
+  padding: 1.25rem;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.85rem;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control de Asistencia - Iglesia León de Judá (Supabase)</title>
+  <title>Control de Asistencia - Iglesia León de Judá</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Supabase JS Client Library -->
@@ -11,7 +11,7 @@
 </head>
 <body>
 
-  <!-- ENCABEZADO OFICIAL CON LOGOTIPO -->
+  <!-- ENCABEZADO OFICIAL CON LOGOTIPO Y CONFIGURACIÓN COMPACTA -->
   <header>
     <div class="header-container">
       <div class="header-brand">
@@ -19,271 +19,143 @@
         <div class="header-title">
           <h1>IGLESIA LEÓN DE JUDÁ</h1>
           <h2>Iglesia de Dios en México E.C.A.R.</h2>
-          <p>Sistema de Control de Asistencia e Integración con Supabase</p>
+          <p>Sistema de Control de Asistencia</p>
         </div>
       </div>
 
+      <!-- BOTÓN DE CONFIGURACIÓN COMPACTO -->
       <div class="header-config">
-        <div id="supabase-badge" class="supabase-status disconnected" onclick="abrirModalSupabase()">
-          <i class="fa-solid fa-database"></i> <span id="supabase-status-text">Modo Local (Configurar Supabase)</span>
+        <div id="supabase-badge" class="supabase-status connected" onclick="abrirModalSupabase()" title="Haz clic para ver o modificar la conexión de Supabase">
+          <i class="fa-solid fa-database"></i> <span id="supabase-status-text">Conectado a Supabase</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="abrirModalSupabase()">
-          <i class="fa-solid fa-key"></i> Claves Supabase
+        <button class="btn btn-secondary btn-sm" onclick="abrirModalSupabase()" title="Configurar Llaves de Supabase">
+          <i class="fa-solid fa-gear"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- NAVEGACIÓN -->
-  <nav>
-    <div class="nav-container">
-      <button class="nav-btn active" onclick="switchTab('dashboard')">
-        <i class="fa-solid fa-chart-pie"></i> Inicio
-      </button>
-      <button class="nav-btn" onclick="switchTab('asistentes')">
-        <i class="fa-solid fa-users"></i> Registro de Asistentes
-      </button>
-      <button class="nav-btn" onclick="switchTab('asistencia')">
-        <i class="fa-solid fa-clipboard-user"></i> Control de Asistencia
-      </button>
-      <button class="nav-btn" onclick="switchTab('reportes')">
-        <i class="fa-solid fa-file-lines"></i> Reportes por Departamento
-      </button>
-    </div>
-  </nav>
-
   <!-- CONTENIDO PRINCIPAL -->
   <main>
 
-    <!-- PESTAÑA: DASHBOARD -->
-    <section id="tab-dashboard" class="tab-content active">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon gold"><i class="fa-solid fa-users"></i></div>
-          <div class="stat-details">
-            <h3 id="stat-total-asistentes">0</h3>
-            <p>Asistentes Registrados</p>
+    <!-- ESTADÍSTICAS RÁPIDAS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon gold"><i class="fa-solid fa-clipboard-user"></i></div>
+        <div class="stat-details">
+          <h3 id="stat-total-registros">0</h3>
+          <p>Registros Totales</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="fa-solid fa-user-check"></i></div>
+        <div class="stat-details">
+          <h3 id="stat-total-llegaron">0</h3>
+          <p>Asistentes que Llegaron (Sí)</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="fa-solid fa-layer-group"></i></div>
+        <div class="stat-details">
+          <h3 id="stat-departamento-top">--</h3>
+          <p>Dept. con Mayor Asistencia</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO DE ASISTENCIA (4 CAMPOS REQUERIDOS) -->
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-pen-to-square"></i> <span id="form-title">Registrar Asistencia</span>
+      </div>
+      <form id="form-asistencia" onsubmit="guardarRegistroAsistencia(event)">
+        <input type="hidden" id="asistencia-id">
+        
+        <div class="form-grid">
+          <!-- 1. Nombre -->
+          <div class="form-group">
+            <label for="asistencia-nombre">1. Nombre del Asistente *</label>
+            <input type="text" id="asistencia-nombre" class="form-control" placeholder="ej. Juan Pérez" required>
+          </div>
+
+          <!-- 2. Fecha -->
+          <div class="form-group">
+            <label for="asistencia-fecha">2. Fecha de Culto *</label>
+            <input type="date" id="asistencia-fecha" class="form-control" required>
+          </div>
+
+          <!-- 3. Departamento -->
+          <div class="form-group">
+            <label for="asistencia-departamento">3. Departamento *</label>
+            <select id="asistencia-departamento" class="form-control" required>
+              <option value="Niños">Niños</option>
+              <option value="Jóvenes">Jóvenes</option>
+              <option value="Damas">Damas</option>
+              <option value="Caballeros">Caballeros</option>
+              <option value="Visitante">Visitante</option>
+            </select>
+          </div>
+
+          <!-- 4. Si llegó o no (Sí/No) -->
+          <div class="form-group">
+            <label for="asistencia-llego">4. ¿Llegó? (Sí / No) *</label>
+            <select id="asistencia-llego" class="form-control" required>
+              <option value="Sí">Sí (Presente)</option>
+              <option value="No">No (Falta)</option>
+            </select>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon blue"><i class="fa-solid fa-church"></i></div>
-          <div class="stat-details">
-            <h3 id="stat-total-servicios">0</h3>
-            <p>Cultos Registrados</p>
-          </div>
+
+        <div class="flex-between mt-2">
+          <button type="button" class="btn btn-secondary" onclick="resetFormulario()">Cancelar / Limpiar</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar en Supabase</button>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon green"><i class="fa-solid fa-user-check"></i></div>
-          <div class="stat-details">
-            <h3 id="stat-asistencia-promedio">0%</h3>
-            <p>Promedio de Presencia</p>
-          </div>
+      </form>
+    </div>
+
+    <!-- TABLA DE REGISTROS GUARDADOS -->
+    <div class="card">
+      <div class="flex-between mb-2">
+        <div class="card-title mb-1" style="border:none; padding:0;">
+          <i class="fa-solid fa-table-list"></i> Historial de Asistencias Registradas
         </div>
-        <div class="stat-card">
-          <div class="stat-icon purple"><i class="fa-solid fa-layer-group"></i></div>
-          <div class="stat-details">
-            <h3 id="stat-departamento-top">--</h3>
-            <p>Dept. Mayor Asistencia</p>
-          </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="text" id="buscar-registro" class="form-control" placeholder="Buscar por nombre..." oninput="renderTablaRegistros()" style="width: 220px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportarBaseDatos()"><i class="fa-solid fa-download"></i> Exportar</button>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">
-          <i class="fa-solid fa-clock-rotate-left"></i> Resumen de Últimos Cultos
-        </div>
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Fecha de Culto</th>
-                <th>Tipo de Servicio</th>
-                <th style="color: var(--accent-green);">Total Llegaron</th>
-                <th>Faltas</th>
-                <th>% Asistencia</th>
-              </tr>
-            </thead>
-            <tbody id="dashboard-servicios-tbody">
-              <tr>
-                <td colspan="5" class="text-center">Cargando servicios...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Fecha</th>
+              <th>Departamento</th>
+              <th class="text-center">¿Llegó?</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-asistencia-tbody">
+            <!-- Se cargan dinámicamente -->
+          </tbody>
+        </table>
       </div>
-    </section>
-
-    <!-- PESTAÑA: REGISTRO DE ASISTENTES -->
-    <section id="tab-asistentes" class="tab-content">
-      <div class="card">
-        <div class="card-title">
-          <i class="fa-solid fa-user-plus"></i> <span id="form-asistente-title">Registro de Nuevo Asistente</span>
-        </div>
-        <form id="form-asistente" onsubmit="guardarAsistente(event)">
-          <input type="hidden" id="asistente-id">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="asistente-nombre">Nombre Completo *</label>
-              <input type="text" id="asistente-nombre" class="form-control" placeholder="ej. Juan Pérez" required>
-            </div>
-            <div class="form-group">
-              <label for="asistente-telefono">Teléfono</label>
-              <input type="tel" id="asistente-telefono" class="form-control" placeholder="ej. 555-123-4567">
-            </div>
-            <div class="form-group">
-              <label for="asistente-departamento">Departamento al que pertenece *</label>
-              <select id="asistente-departamento" class="form-control" required>
-                <option value="Niños">Niños</option>
-                <option value="Jóvenes">Jóvenes</option>
-                <option value="Damas">Damas</option>
-                <option value="Caballeros">Caballeros</option>
-                <option value="Visitante">Visitante</option>
-              </select>
-            </div>
-          </div>
-          <div class="flex-between mt-2">
-            <button type="button" class="btn btn-secondary" onclick="resetFormAsistente()">Cancelar / Limpiar</button>
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar en Base de Datos</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <div class="flex-between mb-2">
-          <div class="card-title mb-1" style="border:none; padding:0;">
-            <i class="fa-solid fa-address-book"></i> Listado de Asistentes
-          </div>
-          <div class="form-group" style="width: 250px;">
-            <input type="text" id="buscar-asistente" class="form-control" placeholder="Buscar por nombre..." oninput="renderTablaAsistentes()">
-          </div>
-        </div>
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nombre Completo</th>
-                <th>Teléfono</th>
-                <th>Departamento</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-asistentes-tbody">
-              <!-- Se cargan dinámicamente -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- PESTAÑA: CONTROL DE ASISTENCIA POR FECHA DE CULTO -->
-    <section id="tab-asistencia" class="tab-content">
-      <div class="card">
-        <div class="card-title">
-          <i class="fa-solid fa-calendar-plus"></i> Abrir / Seleccionar Fecha de Culto
-        </div>
-        <form id="form-servicio" onsubmit="crearOSeleccionarServicio(event)">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="servicio-fecha">Fecha del Culto *</label>
-              <input type="date" id="servicio-fecha" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label for="servicio-tipo">Tipo de Servicio *</label>
-              <select id="servicio-tipo" class="form-control" required>
-                <option value="Servicio Dominical">Servicio Dominical</option>
-                <option value="Culto de Oración">Culto de Oración</option>
-                <option value="Estudio Bíblico">Estudio Bíblico</option>
-                <option value="Culto de Jóvenes">Culto de Jóvenes</option>
-                <option value="Evento Especial">Evento Especial</option>
-              </select>
-            </div>
-          </div>
-          <div class="mt-2 text-center">
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-clipboard-check"></i> Iniciar Control de Asistencia</button>
-          </div>
-        </form>
-      </div>
-
-      <div id="panel-toma-asistencia" class="card" style="display: none;">
-        <div class="flex-between mb-2">
-          <div>
-            <h2 id="asistencia-servicio-info" style="color: var(--primary-gold); font-size: 1.3rem;">--</h2>
-            <p id="asistencia-servicio-subinfo" style="color: var(--text-muted); font-size: 0.9rem;">
-              Total Asistentes Presentes: <strong id="conteo-live-presentes" style="color: var(--accent-green); font-size: 1.1rem;">0</strong>
-            </p>
-          </div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-secondary btn-sm" onclick="marcarTodos('Presente')">Marcar Todos Presentes</button>
-            <button class="btn btn-primary btn-sm" onclick="guardarAsistenciaActual()"><i class="fa-solid fa-floppy-disk"></i> Guardar Asistencia</button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Asistente</th>
-                <th>Departamento</th>
-                <th class="text-center">Estado (Presente / Falta)</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-asistencia-tbody">
-              <!-- Se llena dinámicamente -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- PESTAÑA: REPORTES SIMPLE POR SERVICIO Y DEPARTAMENTO -->
-    <section id="tab-reportes" class="tab-content">
-      <div class="card">
-        <div class="flex-between mb-2">
-          <div class="card-title" style="border:none; padding:0;">
-            <i class="fa-solid fa-chart-column"></i> Reporte de Asistencia por Culto y Departamento
-          </div>
-          <div>
-            <button class="btn btn-secondary btn-sm" onclick="exportarBaseDatos()"><i class="fa-solid fa-download"></i> Exportar Datos (JSON)</button>
-            <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir Reporte</button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Fecha de Culto</th>
-                <th>Tipo de Servicio</th>
-                <th style="color: var(--accent-green);">Total Llegaron</th>
-                <th>Niños</th>
-                <th>Jóvenes</th>
-                <th>Damas</th>
-                <th>Caballeros</th>
-                <th>Visitantes</th>
-                <th>% Asistencia</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-reportes-tbody">
-              <!-- Se llena dinámicamente -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    </div>
 
   </main>
 
-  <!-- MODAL DE CONFIGURACIÓN SUPABASE -->
+  <!-- MODAL DE CONFIGURACIÓN SUPABASE (SE OCULTA AUTOMÁTICAMENTE AL GUARDAR) -->
   <div id="modal-supabase" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
         <h3><i class="fa-solid fa-plug"></i> Conexión con Supabase</h3>
-        <button class="close-modal" onclick="cerrarModalSupabase()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="close-modal" onclick="cerrarModalSupabase()" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form onsubmit="guardarCredencialesSupabase(event)">
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Ingresa la URL y la Llave Anónima (Anon Key) de tu proyecto en Supabase para sincronizar las tablas <code>asistentes</code>, <code>servicios</code> y <code>asistencia</code>.
+          Conectado a las tablas de Supabase para guardar exactamente los campos: <code>nombre</code>, <code>fecha</code>, <code>departamento</code> y <code>llego</code>.
         </p>
         <div class="form-group mb-2">
           <label for="supabase-url">Supabase Project URL</label>
@@ -297,7 +169,7 @@
           <button type="button" class="btn btn-secondary btn-sm" onclick="probarConexionSupabase()"><i class="fa-solid fa-vial"></i> Probar Conexión</button>
           <div style="display: flex; gap: 0.5rem;">
             <button type="button" class="btn btn-secondary btn-sm" onclick="desconectarSupabase()">Modo Local</button>
-            <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Guardar y Conectar</button>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Guardar y Ocultar</button>
           </div>
         </div>
       </form>
@@ -306,7 +178,7 @@
 
   <!-- PIE DE PÁGINA -->
   <footer>
-    <p>&copy; 2026 Iglesia León de Judá (Iglesia de Dios en México E.C.A.R.) - Conexión Supabase Integrada</p>
+    <p>&copy; 2026 Iglesia León de Judá (Iglesia de Dios en México E.C.A.R.) - Formulario Integrado con Supabase</p>
   </footer>
 
   <script src="app.js"></script>
