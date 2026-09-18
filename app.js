@@ -1,49 +1,72 @@
-/* Lógica de la Aplicación (Directa a Supabase) - Iglesia León de Judá */
+/* Lógica Completa de la Aplicación - Iglesia León de Judá & Supabase */
 
 // CREDENCIALES DIRECTAS DE SUPABASE
 const SUPABASE_URL = 'https://pvunuzruywavlyxrxibt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dW51enJ1eXdhdmx5eHJ4aWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0ODI4ODcsImV4cCI6MjEwNDA1ODg4N30.GrB9OSA55UebDMRMUnL936nCeQGB3IC9VZxwWHG36k0';
 
-// Inicialización directa del cliente de Supabase
-let supabaseClient = null;
-if (window.supabase) {
-  try {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {
-    console.error('Error al inicializar cliente de Supabase:', e);
-  }
-}
+const STORAGE_KEYS = {
+  ASISTENTES: 'lj_asistentes',
+  SERVICIOS: 'lj_servicios',
+  ASISTENCIA: 'lj_asistencia'
+};
 
-// Datos semilla locales por defecto
-const SEED_REGISTROS = [
-  { id: '1', nombre: 'Carlos Mendoza', fecha: '2026-09-15', departamento: 'Caballeros', llego: 'Sí' },
-  { id: '2', nombre: 'María Elena Rodríguez', fecha: '2026-09-15', departamento: 'Damas', llego: 'Sí' },
-  { id: '3', nombre: 'Juan Pablo Hernández', fecha: '2026-09-15', departamento: 'Jóvenes', llego: 'No' },
-  { id: '4', nombre: 'Sofia Gómez', fecha: '2026-09-15', departamento: 'Niños', llego: 'Sí' },
-  { id: '5', nombre: 'Roberto Fernández', fecha: '2026-09-15', departamento: 'Visitante', llego: 'Sí' }
+// Datos semilla de demostración
+const SEED_ASISTENTES = [
+  { id: '1', nombre: 'Carlos Mendoza', telefono: '555-123-8901', departamento: 'Caballeros' },
+  { id: '2', nombre: 'María Elena Rodríguez', telefono: '555-987-6543', departamento: 'Damas' },
+  { id: '3', nombre: 'Juan Pablo Hernández', telefono: '555-456-7890', departamento: 'Jóvenes' },
+  { id: '4', nombre: 'Sofia Gómez', telefono: '555-222-3333', departamento: 'Niños' },
+  { id: '5', nombre: 'Roberto Fernández', telefono: '555-888-9999', departamento: 'Visitante' }
 ];
 
-let registrosAsistencia = [];
+// Estado global en memoria
+let DB = {
+  asistentes: [],
+  servicios: [],
+  asistencia: []
+};
+
+let servicioActivoId = null;
+let supabaseClient = null;
 
 // Inicialización al cargar la página
 document.addEventListener('DOMContentLoaded', async () => {
-  establecerFechaPorDefecto();
-  actualizarInsigniaConexion();
+  inicializarSupabaseClient();
   await cargarBaseDatos();
-  updateStats();
-  renderTablaRegistros();
+  establecerFechaPorDefecto();
+  updateDashboard();
+  renderTablaAsistentes();
+  renderReportes();
 });
 
-function actualizarInsigniaConexion() {
+/* ==========================================================================
+   CONFIGURACIÓN Y CLIENTE SUPABASE
+   ========================================================================== */
+
+function inicializarSupabaseClient() {
   const badge = document.getElementById('supabase-badge');
   const badgeText = document.getElementById('supabase-status-text');
 
-  if (inputUrl = document.getElementById('supabase-url')) inputUrl.value = SUPABASE_URL;
-  if (inputKey = document.getElementById('supabase-key')) inputKey.value = SUPABASE_ANON_KEY;
+  const inputUrl = document.getElementById('supabase-url');
+  if (inputUrl) inputUrl.value = SUPABASE_URL;
+  const inputKey = document.getElementById('supabase-key');
+  if (inputKey) inputKey.value = SUPABASE_ANON_KEY;
 
-  if (supabaseClient && badge && badgeText) {
-    badge.className = 'supabase-status connected';
-    badgeText.innerText = 'Conectado a Supabase (pvunuzruywavlyxrxibt)';
+  if (window.supabase) {
+    try {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (badge && badgeText) {
+        badge.className = 'supabase-status connected';
+        badgeText.innerText = 'Conectado a Supabase (pvunuzruywavlyxrxibt)';
+      }
+    } catch (err) {
+      console.error('Error al inicializar cliente Supabase:', err);
+      supabaseClient = null;
+      if (badge && badgeText) {
+        badge.className = 'supabase-status disconnected';
+        badgeText.innerText = 'Error al Inicializar Supabase';
+      }
+    }
   }
 }
 
@@ -58,28 +81,22 @@ function cerrarModalSupabase() {
 async function probarConexionSupabase() {
   try {
     const client = supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let { data, error } = await client.from('asistencia').select('*').limit(3);
-    
-    if (error && error.message.includes('relation')) {
-      const res = await client.from('asistentes').select('*').limit(3);
-      data = res.data;
-      error = res.error;
-    }
+    const { data: astData, error: astErr } = await client.from('asistentes').select('*').limit(3);
 
-    if (error) {
-      alert('Respuesta de Supabase: ' + error.message + '\n\nDetalle: ' + (error.details || error.hint || 'Revisa el nombre de las columnas o tablas.'));
+    if (astErr) {
+      alert('Respuesta de Supabase: ' + astErr.message + '\n\nDetalle: ' + (astErr.details || astErr.hint || 'Verifica tus tablas.'));
     } else {
-      alert(' ¡Conexión Exitosa con Supabase!\nLas tablas están conectadas correctamente.');
+      alert(` ¡Conexión Exitosa con Supabase!\nSe detectó la tabla 'asistentes' con ${astData ? astData.length : 0} registros.`);
     }
   } catch (err) {
-    alert('Error al probar conexión: ' + err.message);
+    alert('Error de conexión: ' + err.message);
   }
 }
 
 function guardarCredencialesSupabase(e) {
   e.preventDefault();
   cerrarModalSupabase();
-  alert('Credenciales de Supabase guardadas y activas directamente en el sistema.');
+  alert('Conexión con Supabase activa.');
 }
 
 function desconectarSupabase() {
@@ -87,232 +104,484 @@ function desconectarSupabase() {
   alert('Modo Local activo.');
 }
 
+// Navegación de Pestañas
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+  const targetTab = document.getElementById(`tab-${tabId}`);
+  if (targetTab) targetTab.classList.add('active');
+
+  const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => 
+    btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabId)
+  );
+  if (activeBtn) activeBtn.classList.add('active');
+
+  if (tabId === 'dashboard') updateDashboard();
+  if (tabId === 'asistentes') renderTablaAsistentes();
+  if (tabId === 'reportes') renderReportes();
+}
+
 function establecerFechaPorDefecto() {
-  const inputFecha = document.getElementById('asistencia-fecha');
-  if (inputFecha && !inputFecha.value) {
+  const inputFecha = document.getElementById('servicio-fecha');
+  if (inputFecha) {
     const today = new Date().toISOString().split('T')[0];
     inputFecha.value = today;
   }
 }
 
 /* ==========================================================================
-   CARGA DE DATOS DESDE SUPABASE / LOCAL
+   CARGA Y PERSISTENCIA DE DATOS EN SUPABASE
    ========================================================================== */
 
 async function cargarBaseDatos() {
   if (supabaseClient) {
     try {
-      let { data, error } = await supabaseClient.from('asistencia').select('*');
-      
-      if (error && error.message.includes('relation')) {
-        const res = await supabaseClient.from('asistentes').select('*');
-        data = res.data;
-        error = res.error;
-      }
+      const { data: astData } = await supabaseClient.from('asistentes').select('*');
+      const { data: srvData } = await supabaseClient.from('servicios').select('*');
+      const { data: asiData } = await supabaseClient.from('asistencia').select('*');
 
-      if (!error && data && data.length > 0) {
-        registrosAsistencia = data.map(r => ({
-          id: r.id || Date.now().toString(),
-          nombre: r.nombre || '',
-          fecha: r.fecha || new Date().toISOString().split('T')[0],
-          departamento: r.departamento || 'Visitante',
-          llego: r.llego || 'Sí'
-        }));
-        return;
-      }
+      if (astData) DB.asistentes = astData;
+      if (srvData) DB.servicios = srvData;
+      if (asiData) DB.asistencia = asiData;
+
+      if (DB.asistentes.length > 0) return;
     } catch (err) {
-      console.warn('Cargando registros locales:', err);
+      console.warn('Error al cargar desde Supabase:', err);
     }
   }
 
-  const stored = localStorage.getItem('lj_registros_asistencia');
-  if (stored) {
-    registrosAsistencia = JSON.parse(stored);
-  } else {
-    registrosAsistencia = [...SEED_REGISTROS];
-    localStorage.setItem('lj_registros_asistencia', JSON.stringify(registrosAsistencia));
+  const asistentesStored = localStorage.getItem(STORAGE_KEYS.ASISTENTES);
+  const serviciosStored = localStorage.getItem(STORAGE_KEYS.SERVICIOS);
+  const asistenciaStored = localStorage.getItem(STORAGE_KEYS.ASISTENCIA);
+
+  if (asistentesStored) DB.asistentes = JSON.parse(asistentesStored);
+  else {
+    DB.asistentes = [...SEED_ASISTENTES];
+    guardarEnLocalStorage();
   }
+
+  if (serviciosStored) DB.servicios = JSON.parse(serviciosStored);
+  if (asistenciaStored) DB.asistencia = JSON.parse(asistenciaStored);
 }
 
 function guardarEnLocalStorage() {
-  localStorage.setItem('lj_registros_asistencia', JSON.stringify(registrosAsistencia));
+  localStorage.setItem(STORAGE_KEYS.ASISTENTES, JSON.stringify(DB.asistentes));
+  localStorage.setItem(STORAGE_KEYS.SERVICIOS, JSON.stringify(DB.servicios));
+  localStorage.setItem(STORAGE_KEYS.ASISTENCIA, JSON.stringify(DB.asistencia));
 }
 
 /* ==========================================================================
-   GUARDAR REGISTRO DIRECTO A SUPABASE (4 CAMPOS EXACTOS)
+   MÓDULO: REGISTRO DE ASISTENTES (Nombre, Teléfono, Departamento)
    ========================================================================== */
 
-async function guardarRegistroAsistencia(e) {
+async function guardarAsistente(e) {
   e.preventDefault();
+  const idInput = document.getElementById('asistente-id').value;
+  const nombre = document.getElementById('asistente-nombre').value.trim();
+  const telefono = document.getElementById('asistente-telefono').value.trim();
+  const departamento = document.getElementById('asistente-departamento').value;
 
-  const idInput = document.getElementById('asistencia-id').value;
-  const nombre = document.getElementById('asistencia-nombre').value.trim();
-  const fecha = document.getElementById('asistencia-fecha').value;
-  const departamento = document.getElementById('asistencia-departamento').value;
-  const llego = document.getElementById('asistencia-llego').value; // 'Sí' o 'No'
-
-  if (!nombre || !fecha || !departamento || !llego) {
-    alert('Por favor completa todos los campos.');
-    return;
-  }
-
-  // OBJETO CON LOS 4 CAMPOS EXACTOS PARA SUPABASE
-  const datosRegistro = {
-    nombre: nombre,
-    fecha: fecha,
-    departamento: departamento,
-    llego: llego
-  };
+  if (!nombre) return;
 
   let errorSupabase = null;
 
   if (idInput) {
-    // Editar registro
-    const index = registrosAsistencia.findIndex(r => String(r.id) === String(idInput));
+    const index = DB.asistentes.findIndex(m => String(m.id) === String(idInput));
     if (index !== -1) {
-      registrosAsistencia[index] = { ...datosRegistro, id: idInput };
+      const updated = { id: idInput, nombre, telefono, departamento };
+      DB.asistentes[index] = updated;
 
       if (supabaseClient) {
-        let { error } = await supabaseClient.from('asistencia').update(datosRegistro).eq('id', idInput);
-        if (error && error.message.includes('relation')) {
-          const res = await supabaseClient.from('asistentes').update(datosRegistro).eq('id', idInput);
-          error = res.error;
-        }
+        const { error } = await supabaseClient.from('asistentes').update({ nombre, telefono, departamento }).eq('id', idInput);
         if (error) errorSupabase = error;
       }
     }
   } else {
-    // Nuevo registro
-    const nuevoId = 'rec_' + Date.now();
-    const nuevoObj = { ...datosRegistro, id: nuevoId };
-    registrosAsistencia.push(nuevoObj);
+    const nuevoId = Date.now().toString();
+    const nuevo = {
+      id: nuevoId,
+      nombre,
+      telefono: telefono || 'N/A',
+      departamento
+    };
+    DB.asistentes.push(nuevo);
 
     if (supabaseClient) {
-      let { error } = await supabaseClient.from('asistencia').insert([datosRegistro]);
-      if (error && error.message.includes('relation')) {
-        const res = await supabaseClient.from('asistentes').insert([datosRegistro]);
-        error = res.error;
-      }
+      const { error } = await supabaseClient.from('asistentes').insert([nuevo]);
       if (error) errorSupabase = error;
     }
   }
 
   guardarEnLocalStorage();
-  resetFormulario();
-  updateStats();
-  renderTablaRegistros();
+  resetFormAsistente();
+  renderTablaAsistentes();
+  updateDashboard();
 
   if (errorSupabase) {
-    alert(' Guardado localmente. Supabase devolvió: ' + errorSupabase.message);
+    alert(' Guardado en almacenamiento local. Supabase reportó: ' + errorSupabase.message);
   } else if (supabaseClient) {
-    alert(' ¡Registro insertado exitosamente en tu base de datos de Supabase!');
+    alert(' ¡Asistente guardado exitosamente en tu tabla de Supabase!');
   } else {
-    alert(' ¡Registro guardado en almacenamiento local!');
+    alert(' ¡Asistente guardado exitosamente en almacenamiento local!');
   }
 }
 
-function resetFormulario() {
-  document.getElementById('form-asistencia').reset();
-  document.getElementById('asistencia-id').value = '';
-  document.getElementById('form-title').innerText = 'Registrar Asistencia';
-  establecerFechaPorDefecto();
+function resetFormAsistente() {
+  document.getElementById('form-asistente').reset();
+  document.getElementById('asistente-id').value = '';
+  document.getElementById('form-asistente-title').innerText = 'Registro de Nuevo Asistente';
 }
 
-function editarRegistro(id) {
-  const reg = registrosAsistencia.find(r => String(r.id) === String(id));
-  if (!reg) return;
+function editarAsistente(id) {
+  const asistente = DB.asistentes.find(m => String(m.id) === String(id));
+  if (!asistente) return;
 
-  document.getElementById('asistencia-id').value = reg.id;
-  document.getElementById('asistencia-nombre').value = reg.nombre;
-  document.getElementById('asistencia-fecha').value = reg.fecha;
-  document.getElementById('asistencia-departamento').value = reg.departamento;
-  document.getElementById('asistencia-llego').value = reg.llego;
+  document.getElementById('asistente-id').value = asistente.id;
+  document.getElementById('asistente-nombre').value = asistente.nombre;
+  document.getElementById('asistente-telefono').value = asistente.telefono || '';
+  document.getElementById('asistente-departamento').value = asistente.departamento;
+  document.getElementById('form-asistente-title').innerText = 'Editar Datos de Asistente';
 
-  document.getElementById('form-title').innerText = 'Editar Registro de Asistencia';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function eliminarRegistro(id) {
-  if (confirm('¿Estás seguro de eliminar este registro?')) {
-    registrosAsistencia = registrosAsistencia.filter(r => String(r.id) !== String(id));
+async function eliminarAsistente(id) {
+  if (confirm('¿Estás seguro de eliminar este asistente?')) {
+    DB.asistentes = DB.asistentes.filter(m => String(m.id) !== String(id));
 
     let errorSupabase = null;
     if (supabaseClient) {
-      let { error } = await supabaseClient.from('asistencia').delete().eq('id', id);
-      if (error && error.message.includes('relation')) {
-        const res = await supabaseClient.from('asistentes').delete().eq('id', id);
-        error = res.error;
-      }
+      const { error } = await supabaseClient.from('asistentes').delete().eq('id', id);
       if (error) errorSupabase = error;
     }
 
     guardarEnLocalStorage();
-    updateStats();
-    renderTablaRegistros();
+    renderTablaAsistentes();
+    updateDashboard();
 
     if (errorSupabase) {
-      alert('Eliminado localmente. Supabase: ' + errorSupabase.message);
+      alert(' Eliminado localmente. Supabase reportó: ' + errorSupabase.message);
     }
   }
 }
 
-function renderTablaRegistros() {
-  const tbody = document.getElementById('tabla-asistencia-tbody');
-  const busqueda = (document.getElementById('buscar-registro')?.value || '').toLowerCase();
+function renderTablaAsistentes() {
+  const tbody = document.getElementById('tabla-asistentes-tbody');
+  const busqueda = (document.getElementById('buscar-asistente')?.value || '').toLowerCase();
   tbody.innerHTML = '';
 
-  const filtrados = registrosAsistencia.filter(r => r.nombre.toLowerCase().includes(busqueda));
+  const filtrados = DB.asistentes.filter(m => m.nombre.toLowerCase().includes(busqueda));
 
   if (filtrados.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center">No se encontraron registros de asistencia.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron asistentes registrados.</td></tr>`;
     return;
   }
 
-  const ordenados = [...filtrados].sort((a, b) => b.fecha.localeCompare(a.fecha));
-
-  ordenados.forEach((r, idx) => {
-    const esSi = r.llego === 'Sí' || r.llego === 'Si' || r.llego === true;
-    const badgeClass = esSi ? 'badge-presente' : 'badge-falta';
-    const textoLlego = esSi ? 'Sí' : 'No';
-
+  filtrados.forEach((m, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${idx + 1}</td>
-      <td><strong>${escapeHtml(r.nombre)}</strong></td>
-      <td>${formatearFecha(r.fecha)}</td>
-      <td><span class="badge badge-depto">${escapeHtml(r.departamento)}</span></td>
-      <td class="text-center"><span class="badge ${badgeClass}">${textoLlego}</span></td>
+      <td><strong>${escapeHtml(m.nombre)}</strong></td>
+      <td>${escapeHtml(m.telefono || 'N/A')}</td>
+      <td><span class="badge badge-depto">${escapeHtml(m.departamento)}</span></td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="editarRegistro('${r.id}')"><i class="fa-solid fa-pen"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')"><i class="fa-solid fa-trash"></i></button>
+        <button class="btn btn-secondary btn-sm" onclick="editarAsistente('${m.id}')"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarAsistente('${m.id}')"><i class="fa-solid fa-trash"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-function updateStats() {
-  document.getElementById('stat-total-registros').innerText = registrosAsistencia.length;
+/* ==========================================================================
+   MÓDULO: CONTROL DE ASISTENCIA (Presente / Falta)
+   ========================================================================== */
 
-  const llegaronCount = registrosAsistencia.filter(r => r.llego === 'Sí' || r.llego === 'Si' || r.llego === true).length;
-  document.getElementById('stat-total-llegaron').innerText = llegaronCount;
+async function crearOSeleccionarServicio(e) {
+  e.preventDefault();
+  const fecha = document.getElementById('servicio-fecha').value;
+  const tipo = document.getElementById('servicio-tipo').value;
 
-  const deptoCounts = {};
-  registrosAsistencia.forEach(r => {
-    if (r.llego === 'Sí' || r.llego === 'Si' || r.llego === true) {
-      deptoCounts[r.departamento] = (deptoCounts[r.departamento] || 0) + 1;
+  if (!fecha || !tipo) return;
+
+  let servicio = DB.servicios.find(s => s.fecha === fecha && s.tipo === tipo);
+
+  if (!servicio) {
+    servicio = {
+      id: 'serv_' + Date.now(),
+      fecha,
+      tipo
+    };
+    DB.servicios.push(servicio);
+
+    if (supabaseClient) {
+      await supabaseClient.from('servicios').insert([servicio]);
+    }
+
+    guardarEnLocalStorage();
+  }
+
+  servicioActivoId = servicio.id;
+  cargarPanelAsistencia(servicio);
+}
+
+function cargarPanelAsistencia(servicio) {
+  const panel = document.getElementById('panel-toma-asistencia');
+  panel.style.display = 'block';
+
+  document.getElementById('asistencia-servicio-info').innerText = `${servicio.tipo} (${formatearFecha(servicio.fecha)})`;
+
+  const tbody = document.getElementById('tabla-asistencia-tbody');
+  tbody.innerHTML = '';
+
+  if (DB.asistentes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center">Por favor, registra primero algunos asistentes en la pestaña "Registro de Asistentes".</td></tr>`;
+    return;
+  }
+
+  const registrosServicio = DB.asistencia.filter(a => a.servicio_id === servicio.id);
+
+  DB.asistentes.forEach(m => {
+    const reg = registrosServicio.find(r => r.asistente_id === m.id);
+    const estadoActual = reg ? reg.estado : 'Falta';
+
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-asistente-id', m.id);
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(m.nombre)}</strong></td>
+      <td><span class="badge badge-depto">${escapeHtml(m.departamento)}</span></td>
+      <td class="text-center">
+        <div class="attendance-options">
+          <button type="button" class="attendance-btn presente ${estadoActual === 'Presente' ? 'active' : ''}" onclick="seleccionarEstado(this, 'Presente')">
+            <i class="fa-solid fa-check"></i> Presente
+          </button>
+          <button type="button" class="attendance-btn falta ${estadoActual === 'Falta' ? 'active' : ''}" onclick="seleccionarEstado(this, 'Falta')">
+            <i class="fa-solid fa-xmark"></i> Falta
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  actualizarConteoLive();
+  panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+function seleccionarEstado(btn, estado) {
+  const container = btn.parentElement;
+  container.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  actualizarConteoLive();
+}
+
+function marcarTodos(estado) {
+  const tbody = document.getElementById('tabla-asistencia-tbody');
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const btns = tr.querySelectorAll('.attendance-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    const target = tr.querySelector(`.attendance-btn.${estado.toLowerCase()}`);
+    if (target) target.classList.add('active');
+  });
+  actualizarConteoLive();
+}
+
+function actualizarConteoLive() {
+  const tbody = document.getElementById('tabla-asistencia-tbody');
+  if (!tbody) return;
+  const presentesCount = tbody.querySelectorAll('.attendance-btn.presente.active').length;
+  const el = document.getElementById('conteo-live-presentes');
+  if (el) el.innerText = presentesCount;
+}
+
+async function guardarAsistenciaActual() {
+  if (!servicioActivoId) return;
+
+  const tbody = document.getElementById('tabla-asistencia-tbody');
+  const rows = tbody.querySelectorAll('tr');
+
+  const registrosUpsert = [];
+
+  rows.forEach(tr => {
+    const asistenteId = tr.getAttribute('data-asistente-id');
+    if (!asistenteId) return;
+
+    const activeBtn = tr.querySelector('.attendance-btn.active');
+    let estado = 'Falta';
+    if (activeBtn) {
+      if (activeBtn.classList.contains('presente')) estado = 'Presente';
+      if (activeBtn.classList.contains('falta')) estado = 'Falta';
+    }
+
+    const index = DB.asistencia.findIndex(a => a.servicio_id === servicioActivoId && a.asistente_id === asistenteId);
+
+    const record = {
+      id: index !== -1 ? DB.asistencia[index].id : 'ast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      servicio_id: servicioActivoId,
+      asistente_id: asistenteId,
+      estado: estado
+    };
+
+    if (index !== -1) {
+      DB.asistencia[index] = record;
+    } else {
+      DB.asistencia.push(record);
+    }
+
+    registrosUpsert.push(record);
+  });
+
+  let errorSupabase = null;
+  if (supabaseClient && registrosUpsert.length > 0) {
+    try {
+      const { error } = await supabaseClient.from('asistencia').upsert(registrosUpsert);
+      if (error) errorSupabase = error;
+    } catch (err) {
+      console.warn('Error al guardar asistencia en Supabase:', err);
+    }
+  }
+
+  guardarEnLocalStorage();
+  updateDashboard();
+  renderReportes();
+
+  if (errorSupabase) {
+    alert(' Asistencia guardada localmente, pero Supabase reportó: ' + errorSupabase.message);
+  } else if (supabaseClient) {
+    alert(' ¡Asistencia guardada exitosamente en la tabla de Supabase!');
+  } else {
+    alert(' ¡Asistencia guardada en almacenamiento local!');
+  }
+}
+
+/* ==========================================================================
+   MÓDULO: REPORTES Y DASHBOARD
+   ========================================================================== */
+
+function updateDashboard() {
+  document.getElementById('stat-total-asistentes').innerText = DB.asistentes.length;
+  document.getElementById('stat-total-servicios').innerText = DB.servicios.length;
+
+  if (DB.servicios.length === 0) {
+    document.getElementById('stat-asistencia-promedio').innerText = '0%';
+    document.getElementById('stat-departamento-top').innerText = '--';
+  } else {
+    let totalPresentes = 0;
+    let totalPosibles = DB.servicios.length * DB.asistentes.length;
+
+    const deptoCounts = { 'Niños': 0, 'Jóvenes': 0, 'Damas': 0, 'Caballeros': 0, 'Visitante': 0 };
+
+    DB.asistencia.forEach(a => {
+      if (a.estado === 'Presente') {
+        totalPresentes++;
+        const asis = DB.asistentes.find(m => m.id === a.asistente_id);
+        if (asis && deptoCounts[asis.departamento] !== undefined) {
+          deptoCounts[asis.departamento]++;
+        }
+      }
+    });
+
+    const prom = totalPosibles > 0 ? Math.round((totalPresentes / totalPosibles) * 100) : 0;
+    document.getElementById('stat-asistencia-promedio').innerText = `${prom}%`;
+
+    let topDepto = '--';
+    let maxVal = -1;
+    for (const [dep, count] of Object.entries(deptoCounts)) {
+      if (count > maxVal && count > 0) {
+        maxVal = count;
+        topDepto = dep;
+      }
+    }
+    document.getElementById('stat-departamento-top').innerText = topDepto;
+  }
+
+  renderTablaDashboardServicios();
+}
+
+function renderTablaDashboardServicios() {
+  const tbody = document.getElementById('dashboard-servicios-tbody');
+  tbody.innerHTML = '';
+
+  if (DB.servicios.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center">No hay cultos registrados aún.</td></tr>`;
+    return;
+  }
+
+  const ultimosServicios = [...DB.servicios].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5);
+
+  ultimosServicios.forEach(s => {
+    const stats = calcularEstadisticasServicio(s.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${formatearFecha(s.fecha)}</strong></td>
+      <td>${escapeHtml(s.tipo)}</td>
+      <td><span class="badge badge-presente">${stats.totalPresentes}</span></td>
+      <td><span class="badge badge-falta">${stats.totalFaltas}</span></td>
+      <td><strong>${stats.porcentaje}%</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderReportes() {
+  const tbody = document.getElementById('tabla-reportes-tbody');
+  tbody.innerHTML = '';
+
+  if (DB.servicios.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center">No hay datos de cultos o asistencia guardados.</td></tr>`;
+    return;
+  }
+
+  const serviciosOrdenados = [...DB.servicios].sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  serviciosOrdenados.forEach(s => {
+    const stats = calcularEstadisticasServicio(s.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${formatearFecha(s.fecha)}</strong></td>
+      <td>${escapeHtml(s.tipo)}</td>
+      <td><span class="badge badge-presente" style="font-size: 0.85rem;">${stats.totalPresentes}</span></td>
+      <td>${stats.deptos['Niños'] || 0}</td>
+      <td>${stats.deptos['Jóvenes'] || 0}</td>
+      <td>${stats.deptos['Damas'] || 0}</td>
+      <td>${stats.deptos['Caballeros'] || 0}</td>
+      <td>${stats.deptos['Visitante'] || 0}</td>
+      <td><strong style="color: var(--primary-gold);">${stats.porcentaje}%</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function calcularEstadisticasServicio(servicioId) {
+  const registros = DB.asistencia.filter(a => a.servicio_id === servicioId);
+  let totalPresentes = 0;
+  let totalFaltas = 0;
+
+  const deptos = {
+    'Niños': 0,
+    'Jóvenes': 0,
+    'Damas': 0,
+    'Caballeros': 0,
+    'Visitante': 0
+  };
+
+  registros.forEach(r => {
+    if (r.estado === 'Presente') {
+      totalPresentes++;
+      const asis = DB.asistentes.find(m => m.id === r.asistente_id);
+      if (asis && deptos[asis.departamento] !== undefined) {
+        deptos[asis.departamento]++;
+      }
+    } else {
+      totalFaltas++;
     }
   });
 
-  let topDepto = '--';
-  let maxCount = -1;
-  for (const [dep, count] of Object.entries(deptoCounts)) {
-    if (count > maxCount) {
-      maxCount = count;
-      topDepto = dep;
-    }
-  }
-  document.getElementById('stat-departamento-top').innerText = topDepto;
+  const totalEvaluados = DB.asistentes.length || 1;
+  const porcentaje = Math.round((totalPresentes / totalEvaluados) * 100);
+
+  return { totalPresentes, totalFaltas, deptos, porcentaje };
 }
 
 /* ==========================================================================
@@ -337,7 +606,7 @@ function escapeHtml(str) {
 }
 
 function exportarBaseDatos() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(registrosAsistencia, null, 2));
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DB, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
   downloadAnchor.setAttribute("download", `asistencia_leon_de_juda_${new Date().toISOString().split('T')[0]}.json`);
