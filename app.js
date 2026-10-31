@@ -12,11 +12,11 @@ const STORAGE_KEYS = {
 
 // Datos semilla de demostración
 const SEED_ASISTENTES = [
-  { id: '1', nombre: 'Carlos Mendoza', telefono: '555-123-8901', departamento: 'Caballeros' },
-  { id: '2', nombre: 'María Elena Rodríguez', telefono: '555-987-6543', departamento: 'Damas' },
-  { id: '3', nombre: 'Juan Pablo Hernández', telefono: '555-456-7890', departamento: 'Jóvenes' },
-  { id: '4', nombre: 'Sofia Gómez', telefono: '555-222-3333', departamento: 'Niños' },
-  { id: '5', nombre: 'Roberto Fernández', telefono: '555-888-9999', departamento: 'Visitante' }
+  { id: '1', nombre: 'Carlos Mendoza', fecha_hora: '2026-10-31T09:00', departamento: 'Caballeros' },
+  { id: '2', nombre: 'María Elena Rodríguez', fecha_hora: '2026-10-31T09:15', departamento: 'Damas' },
+  { id: '3', nombre: 'Juan Pablo Hernández', fecha_hora: '2026-10-31T09:30', departamento: 'Jóvenes' },
+  { id: '4', nombre: 'Sofia Gómez', fecha_hora: '2026-10-31T09:45', departamento: 'Niños' },
+  { id: '5', nombre: 'Roberto Fernández', fecha_hora: '2026-10-31T10:00', departamento: 'Visitante' }
 ];
 
 // Estado global en memoria
@@ -128,6 +128,11 @@ function establecerFechaPorDefecto() {
     const today = new Date().toISOString().split('T')[0];
     inputFecha.value = today;
   }
+
+  const inputFechaHora = document.getElementById('asistente-fecha-hora');
+  if (inputFechaHora && !inputFechaHora.value) {
+    inputFechaHora.value = obtenerFechaHoraActualLocal();
+  }
 }
 
 /* ==========================================================================
@@ -141,7 +146,12 @@ async function cargarBaseDatos() {
       const { data: srvData } = await supabaseClient.from('servicios').select('*');
       const { data: asiData } = await supabaseClient.from('asistencia').select('*');
 
-      if (astData) DB.asistentes = astData;
+      if (astData) {
+        DB.asistentes = astData.map(a => ({
+          ...a,
+          fecha_hora: a.fecha_hora || a.fecha || a.created_at || a.telefono || ''
+        }));
+      }
       if (srvData) DB.servicios = srvData;
       if (asiData) DB.asistencia = asiData;
 
@@ -172,28 +182,44 @@ function guardarEnLocalStorage() {
 }
 
 /* ==========================================================================
-   MÓDULO: REGISTRO DE ASISTENTES (Nombre, Teléfono, Departamento)
+   MÓDULO: REGISTRO DE ASISTENTES (Nombre, Fecha y Hora, Departamento)
    ========================================================================== */
 
 async function guardarAsistente(e) {
   e.preventDefault();
   const idInput = document.getElementById('asistente-id').value;
   const nombre = document.getElementById('asistente-nombre').value.trim();
-  const telefono = document.getElementById('asistente-telefono').value.trim();
+  const fechaHora = document.getElementById('asistente-fecha-hora').value || obtenerFechaHoraActualLocal();
   const departamento = document.getElementById('asistente-departamento').value;
 
   if (!nombre) return;
 
   let errorSupabase = null;
+  const datosSupabase = {
+    nombre,
+    fecha_hora: fechaHora,
+    departamento
+  };
 
   if (idInput) {
     const index = DB.asistentes.findIndex(m => String(m.id) === String(idInput));
     if (index !== -1) {
-      const updated = { id: idInput, nombre, telefono, departamento };
+      const updated = { id: idInput, nombre, fecha_hora: fechaHora, departamento };
       DB.asistentes[index] = updated;
 
       if (supabaseClient) {
-        const { error } = await supabaseClient.from('asistentes').update({ nombre, telefono, departamento }).eq('id', idInput);
+        let { error } = await supabaseClient.from('asistentes').update(datosSupabase).eq('id', idInput);
+        // Fallback si la columna en Supabase es 'fecha' o 'telefono'
+        if (error && error.message && (error.message.includes('fecha_hora') || error.message.includes('column'))) {
+          const alt1 = await supabaseClient.from('asistentes').update({ nombre, fecha: fechaHora, departamento }).eq('id', idInput);
+          if (!alt1.error) {
+            error = null;
+          } else if (alt1.error && alt1.error.message.includes('column')) {
+            const alt2 = await supabaseClient.from('asistentes').update({ nombre, telefono: fechaHora, departamento }).eq('id', idInput);
+            if (!alt2.error) error = null;
+            else error = alt1.error;
+          }
+        }
         if (error) errorSupabase = error;
       }
     }
@@ -202,13 +228,37 @@ async function guardarAsistente(e) {
     const nuevo = {
       id: nuevoId,
       nombre,
-      telefono: telefono || 'N/A',
+      fecha_hora: fechaHora,
       departamento
     };
     DB.asistentes.push(nuevo);
 
     if (supabaseClient) {
-      const { error } = await supabaseClient.from('asistentes').insert([nuevo]);
+      let { error } = await supabaseClient.from('asistentes').insert([{
+        id: nuevoId,
+        ...datosSupabase
+      }]);
+      // Fallback si la columna en Supabase es 'fecha' o 'telefono'
+      if (error && error.message && (error.message.includes('fecha_hora') || error.message.includes('column'))) {
+        const alt1 = await supabaseClient.from('asistentes').insert([{
+          id: nuevoId,
+          nombre,
+          fecha: fechaHora,
+          departamento
+        }]);
+        if (!alt1.error) {
+          error = null;
+        } else if (alt1.error && alt1.error.message.includes('column')) {
+          const alt2 = await supabaseClient.from('asistentes').insert([{
+            id: nuevoId,
+            nombre,
+            telefono: fechaHora,
+            departamento
+          }]);
+          if (!alt2.error) error = null;
+          else error = alt1.error;
+        }
+      }
       if (error) errorSupabase = error;
     }
   }
@@ -231,6 +281,10 @@ function resetFormAsistente() {
   document.getElementById('form-asistente').reset();
   document.getElementById('asistente-id').value = '';
   document.getElementById('form-asistente-title').innerText = 'Registro de Nuevo Asistente';
+  const inputFechaHora = document.getElementById('asistente-fecha-hora');
+  if (inputFechaHora) {
+    inputFechaHora.value = obtenerFechaHoraActualLocal();
+  }
 }
 
 function editarAsistente(id) {
@@ -239,7 +293,17 @@ function editarAsistente(id) {
 
   document.getElementById('asistente-id').value = asistente.id;
   document.getElementById('asistente-nombre').value = asistente.nombre;
-  document.getElementById('asistente-telefono').value = asistente.telefono || '';
+  const inputFechaHora = document.getElementById('asistente-fecha-hora');
+  if (inputFechaHora) {
+    let val = asistente.fecha_hora || asistente.fecha || '';
+    if (val && val.includes('T')) {
+      inputFechaHora.value = val.slice(0, 16);
+    } else if (val) {
+      inputFechaHora.value = val;
+    } else {
+      inputFechaHora.value = obtenerFechaHoraActualLocal();
+    }
+  }
   document.getElementById('asistente-departamento').value = asistente.departamento;
   document.getElementById('form-asistente-title').innerText = 'Editar Datos de Asistente';
 
@@ -283,7 +347,7 @@ function renderTablaAsistentes() {
     tr.innerHTML = `
       <td>${idx + 1}</td>
       <td><strong>${escapeHtml(m.nombre)}</strong></td>
-      <td>${escapeHtml(m.telefono || 'N/A')}</td>
+      <td>${formatearFechaHora(m.fecha_hora || m.fecha || m.created_at)}</td>
       <td><span class="badge badge-depto">${escapeHtml(m.departamento)}</span></td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="editarAsistente('${m.id}')"><i class="fa-solid fa-pen"></i></button>
@@ -593,6 +657,36 @@ function formatearFecha(fechaStr) {
   const partes = fechaStr.split('-');
   if (partes.length !== 3) return fechaStr;
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function obtenerFechaHoraActualLocal() {
+  const now = new Date();
+  const anio = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  const dia = String(now.getDate()).padStart(2, '0');
+  const horas = String(now.getHours()).padStart(2, '0');
+  const minutos = String(now.getMinutes()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}T${horas}:${minutos}`;
+}
+
+function formatearFechaHora(fechaHoraStr) {
+  if (!fechaHoraStr) return 'N/A';
+  try {
+    const d = new Date(fechaHoraStr);
+    if (isNaN(d.getTime())) return escapeHtml(fechaHoraStr);
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const anio = d.getFullYear();
+    let horas = d.getHours();
+    const minutos = String(d.getMinutes()).padStart(2, '0');
+    const ampm = horas >= 12 ? 'PM' : 'AM';
+    horas = horas % 12;
+    horas = horas ? horas : 12;
+    const strHoras = String(horas).padStart(2, '0');
+    return `${dia}/${mes}/${anio} ${strHoras}:${minutos} ${ampm}`;
+  } catch (e) {
+    return escapeHtml(fechaHoraStr);
+  }
 }
 
 function escapeHtml(str) {
