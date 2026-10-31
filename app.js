@@ -380,10 +380,16 @@ async function crearOSeleccionarServicio(e) {
     DB.servicios.push(servicio);
 
     if (supabaseClient) {
-      await supabaseClient.from('servicios').insert([servicio]);
+      const { error } = await supabaseClient.from('servicios').upsert([servicio]);
+      if (error) console.warn('Aviso Supabase al guardar servicio:', error.message);
     }
 
     guardarEnLocalStorage();
+  } else {
+    // Asegurar que el servicio existente esté sincronizado en Supabase
+    if (supabaseClient) {
+      await supabaseClient.from('servicios').upsert([servicio]);
+    }
   }
 
   servicioActivoId = servicio.id;
@@ -496,13 +502,37 @@ async function guardarAsistenciaActual() {
     registrosUpsert.push(record);
   });
 
+  const servicioActual = DB.servicios.find(s => s.id === servicioActivoId);
+  const nombreServicio = servicioActual ? servicioActual.tipo : (document.getElementById('servicio-tipo')?.value || 'el servicio');
+
   let errorSupabase = null;
-  if (supabaseClient && registrosUpsert.length > 0) {
-    try {
-      const { error } = await supabaseClient.from('asistencia').upsert(registrosUpsert);
-      if (error) errorSupabase = error;
-    } catch (err) {
-      console.warn('Error al guardar asistencia en Supabase:', err);
+  if (supabaseClient) {
+    // 1. Sincronizar el servicio y su tipo en la tabla 'servicios' de Supabase
+    if (servicioActual) {
+      try {
+        const { error: srvErr } = await supabaseClient.from('servicios').upsert([{
+          id: servicioActual.id,
+          fecha: servicioActual.fecha,
+          tipo: servicioActual.tipo
+        }]);
+        if (srvErr) console.warn('Aviso al guardar servicio en Supabase:', srvErr.message);
+      } catch (e) {
+        console.warn('Aviso de conexión con servicios:', e);
+      }
+    }
+
+    // 2. Sincronizar las asistencias en la tabla 'asistencia' de Supabase
+    if (registrosUpsert.length > 0) {
+      try {
+        let { error } = await supabaseClient.from('asistencia').upsert(registrosUpsert);
+        if (error && error.message && error.message.includes('relation')) {
+          const res = await supabaseClient.from('asistencias').upsert(registrosUpsert);
+          error = res.error;
+        }
+        if (error) errorSupabase = error;
+      } catch (err) {
+        console.warn('Error al guardar asistencia en Supabase:', err);
+      }
     }
   }
 
@@ -511,11 +541,11 @@ async function guardarAsistenciaActual() {
   renderReportes();
 
   if (errorSupabase) {
-    alert(' Asistencia guardada localmente, pero Supabase reportó: ' + errorSupabase.message);
+    alert(` Asistencia para "${nombreServicio}" guardada localmente, pero Supabase reportó: ` + errorSupabase.message);
   } else if (supabaseClient) {
-    alert(' ¡Asistencia guardada exitosamente en la tabla de Supabase!');
+    alert(` ¡Asistencia para "${nombreServicio}" guardada exitosamente en Supabase!`);
   } else {
-    alert(' ¡Asistencia guardada en almacenamiento local!');
+    alert(` ¡Asistencia para "${nombreServicio}" guardada en almacenamiento local!`);
   }
 }
 
